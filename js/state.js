@@ -1,6 +1,8 @@
 // State data
 export const state = {
     currentHall: 1,
+    currentPage: "halls", 
+    selectedPotId: null, 
     
     // List of ingredients
     ingredients: [
@@ -10,5 +12,27 @@ export const state = {
     ],
     
     // List of pots
-    pots: [] 
+    pots: [
+        { id: 101, ingredients: [], mixed: false, color: null, texture: null },
+        { id: 102, ingredients: [], mixed: false, color: null, texture: null },
+        { id: 103, ingredients: [], mixed: false, color: null, texture: null }
+    ],
+    
+    // List of machines
+    machines: [],
+
+    // List of mixed pots in cabinet
+    cabinet: [],
+
+    // Grid cells for testing
+    grid: Array(24).fill(null),
+    
+    // Weather data with coordinates
+    weather: {
+        temperature: 15,
+        isRainingOrSnowing: false,
+        location: "Arnhem",
+        lat: 51.9851,
+        lon: 5.9039
+    }
 };
