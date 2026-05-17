@@ -15,44 +15,31 @@ function mixColors(ingredients) {
 
 // Creating helper to convert HSL to RGB text
 function hslToRgbText(hslStr) {
-    // Extract the numbers from the HSL string (e.g., "hsl(120, 100%, 50%)" -> [120, 100, 50])
     const matches = hslStr.match(/\d+/g);
     if (!matches) return "rgb(255, 255, 255)";
-
-    // Convert degrees and percentages to fractions between 0 and 1
-    const h = parseInt(matches[0]) / 360;
-    const s = parseInt(matches[1]) / 100;
-    const l = parseInt(matches[2]) / 100;
-
-    // If saturation is 0, the color is gray (Red, Green and Blue are all equal)
+    let h = parseInt(matches[0]) / 360;
+    let s = parseInt(matches[1]) / 100;
+    let l = parseInt(matches[2]) / 100;
+    let r, g, b;
     if (s === 0) {
         const grayValue = Math.round(l * 255);
         return `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
     }
-
-    // Helper function to calculate the color intensity for a specific color zone
     const calculateChannel = (p, q, t) => {
         let hueTime = t;
         if (hueTime < 0) hueTime += 1;
         if (hueTime > 1) hueTime -= 1;
-        
         if (hueTime < 1/6) return p + (q - p) * 6 * hueTime;
         if (hueTime < 1/2) return q;
         if (hueTime < 2/3) return p + (q - p) * (2/3 - hueTime) * 6;
         return p;
     };
-
-    // Calculate temporary mathematical values based on lightness and saturation
     const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
     const p = 2 * l - q;
-
-    // Calculate the final Red, Green and Blue values and scale them to 0-255
-    const r = Math.round(calculateChannel(p, q, h + 1/3) * 255);
-    const g = Math.round(calculateChannel(p, q, h) * 255);
-    const b = Math.round(calculateChannel(p, q, h - 1/3) * 255);
-
-    return `rgb(${r}, ${g}, ${b})`;
-
+    const rVal = Math.round(calculateChannel(p, q, h + 1/3) * 255);
+    const gVal = Math.round(calculateChannel(p, q, h) * 255);
+    const bVal = Math.round(calculateChannel(p, q, h - 1/3) * 255);
+    return `rgb(${rVal}, ${gVal}, ${bVal})`;
 }
 
 export function render() {
@@ -228,7 +215,6 @@ export function render() {
         machineButton.addEventListener("click", () => {
             const machinesInHall = state.machines.filter(m => m.hallId === state.currentHall).length;
             if (machinesInHall < 5) {
-                // Giving machine a default max allowed time of 2500ms
                 state.machines.push({ id: Date.now(), hallId: state.currentHall, isMixing: false, pot: null, maxTime: 2500 });
                 render();
             } else { alert("Max 5 machines!"); }
@@ -267,7 +253,6 @@ export function render() {
                         let maxTime = 0;
                         pot.ingredients.forEach(i => { if (i.time > maxTime) maxTime = i.time; });
 
-                        // Checking FAQ rule: ingredient time higher than machine time limit
                         if (maxTime > machine.maxTime) {
                             alert("Mislukt! De mengtijd van de ingrediënten is hoger dan deze machine aankan. Ingrediënten zijn vernietigd!");
                             pot.ingredients = []; 
@@ -335,7 +320,6 @@ export function render() {
                 e.preventDefault();
                 potDiv.classList.remove("drag-over");
                 
-                // Checking if the dragged item is actually an ingredient
                 const ingredientIdStr = e.dataTransfer.getData("text/ingredient-id");
                 if (!ingredientIdStr) return; 
 
@@ -413,42 +397,54 @@ export function render() {
             const cell = document.createElement("div");
             cell.className = "grid-cell";
             cell.style.backgroundColor = cellColor || "#fff";
-
-            cell.addEventListener("click", (e) => {
-                if (state.selectedPotId) {
-                    const selectedPot = state.cabinet.find(p => p.id === state.selectedPotId);
-                    state.grid[index] = selectedPot.color;
-                    state.selectedPotId = null; 
-                    render();
-                } else if (cellColor) {
-                    const match = cellColor.match(/\d+/);
-                    const h = match ? parseInt(match[0]) : 0;
-                    const t1 = `hsl(${(h + 120) % 360}, 100%, 50%)`;
-                    const t2 = `hsl(${(h + 240) % 360}, 100%, 50%)`;
-
-                    const popup = document.createElement("div");
-                    popup.className = "triadic-popup";
-                    popup.style.left = `${e.pageX + 10}px`;
-                    popup.style.top = `${e.pageY + 10}px`;
-
-                    popup.innerHTML = `
-                        <h4>Triadic Kleuradvies</h4>
-                        <div class="advice-row">
-                            <div class="color-preview" style="background:${t1};"></div>
-                            <div class="color-codes">HSL: <small>${t1}</small><br>RGB: <small>${hslToRgbText(t1)}</small></div>
-                        </div>
-                        <div class="advice-row">
-                            <div class="color-preview" style="background:${t2};"></div>
-                            <div class="color-codes">HSL: <small>${t2}</small><br>RGB: <small>${hslToRgbText(t2)}</small></div>
-                        </div>
-                        <button class="btn-primary btn-sm" id="close-popup">Sluiten</button>
-                    `;
-                    appContainer.appendChild(popup);
-                    document.getElementById("close-popup").addEventListener("click", () => { popup.remove(); });
-                }
-            });
+            
+            // Storing the array index in the DOM dataset for Event Delegation
+            cell.dataset.index = index;
             gridContainer.appendChild(cell);
         });
+
+        // Event Delegation: Adding single listener to the grid parent container
+        gridContainer.addEventListener("click", (e) => {
+            // Finding if the clicked element is a grid cell
+            const cell = e.target.closest(".grid-cell");
+            if (!cell) return;
+
+            const index = parseInt(cell.dataset.index);
+            const cellColor = state.grid[index];
+
+            if (state.selectedPotId) {
+                const selectedPot = state.cabinet.find(p => p.id === state.selectedPotId);
+                state.grid[index] = selectedPot.color;
+                state.selectedPotId = null; 
+                render();
+            } else if (cellColor) {
+                const match = cellColor.match(/\d+/);
+                const h = match ? parseInt(match[0]) : 0;
+                const t1 = `hsl(${(h + 120) % 360}, 100%, 50%)`;
+                const t2 = `hsl(${(h + 240) % 360}, 100%, 50%)`;
+
+                const popup = document.createElement("div");
+                popup.className = "triadic-popup";
+                popup.style.left = `${e.pageX + 10}px`;
+                popup.style.top = `${e.pageY + 10}px`;
+
+                popup.innerHTML = `
+                    <h4>Triadic Kleuradvies</h4>
+                    <div class="advice-row">
+                        <div class="color-preview" style="background:${t1};"></div>
+                        <div class="color-codes">HSL: <small>${t1}</small><br>RGB: <small>${hslToRgbText(t1)}</small></div>
+                    </div>
+                    <div class="advice-row">
+                        <div class="color-preview" style="background:${t2};"></div>
+                        <div class="color-codes">HSL: <small>${t2}</small><br>RGB: <small>${hslToRgbText(t2)}</small></div>
+                    </div>
+                    <button class="btn-primary btn-sm" id="close-popup">Sluiten</button>
+                `;
+                appContainer.appendChild(popup);
+                document.getElementById("close-popup").addEventListener("click", () => { popup.remove(); });
+            }
+        });
+
         testPage.appendChild(gridContainer);
         appContainer.appendChild(testPage);
     }
